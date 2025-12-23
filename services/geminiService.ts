@@ -1,6 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Category } from "../types";
 
+// Initialize the client.
+// Note: If the key is missing here, the API calls will fail with a clear message now.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // 1. Trend Discovery
@@ -31,8 +33,9 @@ export async function getTrendingTopic(category: Category): Promise<{ topic: str
     
     const json = JSON.parse(response.text || "{}");
     return json;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching trend:", error);
+    // Fallback to prevent crash, but log the specific error
     return { topic: `${category} News`, context: "General update" };
   }
 }
@@ -94,9 +97,10 @@ export async function generateBlogPostContent(topic: string, context: string, ca
       citations: Array.from(new Set([...(result.citations || []), ...groundingUrls]))
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating content:", error);
-    throw new Error("Failed to generate content");
+    // CRITICAL FIX: Throw the ACTUAL error message so we can see it in the UI logs
+    throw new Error(error.message || "Unknown API Error");
   }
 }
 
@@ -115,7 +119,6 @@ export async function generatePostImage(imagePrompt: string, fallbackTopic: stri
       }
     });
     
-    // Iterate through parts to find the image data
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
@@ -125,12 +128,10 @@ export async function generatePostImage(imagePrompt: string, fallbackTopic: stri
       }
     }
     
-    // Fallback if no image data found
     return `https://picsum.photos/seed/${encodeURIComponent(fallbackTopic)}/800/450`;
 
   } catch (error) {
     console.error("Error generating image:", error);
-    // Fallback to random picsum image
     return `https://picsum.photos/seed/${Math.random()}/800/450`;
   }
 }
