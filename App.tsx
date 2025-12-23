@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Helmet } from 'react-helmet-async';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import PostGrid from './components/PostGrid';
@@ -28,15 +29,16 @@ function App() {
   // --- Persistence & Initialization ---
   useEffect(() => {
     const initializeData = async () => {
+      let loadedPosts: Post[] = [];
+
       // 1. Try to fetch the "Production Database" (posts.json)
       try {
         const response = await fetch('./posts.json');
         if (response.ok) {
           const dbPosts = await response.json();
           if (Array.isArray(dbPosts) && dbPosts.length > 0) {
-            setPosts(dbPosts);
+            loadedPosts = dbPosts;
             addLog('Loaded posts from Production Database (posts.json)', 'success');
-            return; // If successful, skip localStorage check for posts
           }
         }
       } catch (err) {
@@ -44,21 +46,35 @@ function App() {
       }
 
       // 2. Fallback to LocalStorage (Development/Manual Mode)
-      const savedPosts = localStorage.getItem(STORAGE_KEY);
-      if (savedPosts) {
-        try {
-          const parsed = JSON.parse(savedPosts);
-          if (parsed.length > 0 && typeof parsed[0].author === 'string') {
-             console.warn("Legacy data detected. Resetting to seed.");
-             setPosts(SEED_POSTS);
-          } else {
-             setPosts(parsed);
+      if (loadedPosts.length === 0) {
+        const savedPosts = localStorage.getItem(STORAGE_KEY);
+        if (savedPosts) {
+          try {
+            const parsed = JSON.parse(savedPosts);
+            if (parsed.length > 0 && typeof parsed[0].author === 'string') {
+               console.warn("Legacy data detected. Resetting to seed.");
+               loadedPosts = SEED_POSTS;
+            } else {
+               loadedPosts = parsed;
+            }
+          } catch (e) {
+            loadedPosts = SEED_POSTS;
           }
-        } catch (e) {
-          setPosts(SEED_POSTS);
+        } else {
+          loadedPosts = SEED_POSTS;
         }
-      } else {
-        setPosts(SEED_POSTS);
+      }
+
+      setPosts(loadedPosts);
+
+      // --- SEO: Check URL for ?post=ID ---
+      const params = new URLSearchParams(window.location.search);
+      const postIdFromUrl = params.get('post');
+      if (postIdFromUrl) {
+        const foundPost = loadedPosts.find(p => p.id === postIdFromUrl);
+        if (foundPost) {
+          setSelectedPost(foundPost);
+        }
       }
     };
 
@@ -113,7 +129,19 @@ function App() {
       totalViews: prev.totalViews + 1,
       totalRevenue: prev.totalRevenue + 0.02
     }));
+    
+    // Update URL without reloading page (SPA SEO friendly)
+    const newUrl = `${window.location.pathname}?post=${post.id}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+    
     setSelectedPost(post);
+  };
+
+  const handleCloseArticle = () => {
+    setSelectedPost(null);
+    // Revert URL to home
+    const newUrl = window.location.pathname;
+    window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
   const handleDeletePost = (postId: string) => {
@@ -223,6 +251,11 @@ function App() {
   // --- Render ---
   return (
     <div className="min-h-screen flex flex-col font-sans text-gray-100">
+      <Helmet>
+        <title>فارسی هاب | اخبار تکنولوژی و هوش مصنوعی</title>
+        <meta name="description" content="فارسی هاب، مرجع اخبار تکنولوژی، سینما و سبک زندگی با تولید محتوای هوشمند." />
+      </Helmet>
+
       <Header onOpenAdmin={() => setIsAdminOpen(true)} />
 
       <main className="container mx-auto px-4 py-8 flex-1">
@@ -234,7 +267,7 @@ function App() {
 
         {/* Featured / Hero */}
         <section className="mb-12">
-          <Hero post={posts[0]} onClick={handlePostClick} />
+          {posts.length > 0 && <Hero post={posts[0]} onClick={handlePostClick} />}
         </section>
 
         <div className="flex flex-col lg:flex-row gap-12">
@@ -292,7 +325,7 @@ function App() {
 
       <ArticleModal 
         post={selectedPost} 
-        onClose={() => setSelectedPost(null)} 
+        onClose={handleCloseArticle} 
       />
     </div>
   );

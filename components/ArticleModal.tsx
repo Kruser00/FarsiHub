@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Post } from '../types';
 import AdBanner from './AdBanner';
 
@@ -8,63 +9,47 @@ interface ArticleModalProps {
 }
 
 const ArticleModal: React.FC<ArticleModalProps> = ({ post, onClose }) => {
-  // SEO & Metadata Injection
-  useEffect(() => {
-    if (post) {
-      document.title = `${post.title} | فارسی هاب`;
-      
-      // Inject Meta Description
-      let metaDesc = document.querySelector('meta[name="description"]');
-      if (!metaDesc) {
-        metaDesc = document.createElement('meta');
-        metaDesc.setAttribute('name', 'description');
-        document.head.appendChild(metaDesc);
-      }
-      metaDesc.setAttribute('content', post.excerpt);
-
-      // Inject JSON-LD
-      const scriptId = 'json-ld-article';
-      const existingScript = document.getElementById(scriptId);
-      if (existingScript) existingScript.remove();
-      
-      const scriptTag = document.createElement('script');
-      scriptTag.id = scriptId;
-      scriptTag.type = 'application/ld+json';
-      const structuredData = {
-        "@context": "https://schema.org",
-        "@type": "BlogPosting",
-        "headline": post.title,
-        "image": post.imageUrl,
-        "author": {
-          "@type": "Person",
-          "name": post.author.name
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "FarsiHub",
-          "logo": {
-            "@type": "ImageObject",
-            "url": "https://via.placeholder.com/100" // Placeholder logo
-          }
-        },
-        "datePublished": post.date, // Note: Should be ISO format in real app
-        "description": post.excerpt
-      };
-      scriptTag.innerHTML = JSON.stringify(structuredData);
-      document.head.appendChild(scriptTag);
-    } else {
-      document.title = "فارسی هاب | FarsiHub";
-    }
-
-    return () => {
-      document.title = "فارسی هاب | FarsiHub";
-    };
-  }, [post]);
-
   if (!post) return null;
+
+  // SEO: Structured Data for Google
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.title,
+    "image": post.imageUrl,
+    "author": {
+      "@type": "Person",
+      "name": post.author.name
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "FarsiHub",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://via.placeholder.com/100"
+      }
+    },
+    "datePublished": post.date,
+    "description": post.excerpt
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+      {/* Dynamic SEO Meta Tags */}
+      <Helmet>
+        <title>{post.title} | فارسی هاب</title>
+        <meta name="description" content={post.excerpt} />
+        {/* Open Graph / Social Media */}
+        <meta property="og:title" content={post.title} />
+        <meta property="og:description" content={post.excerpt} />
+        <meta property="og:image" content={post.imageUrl} />
+        <meta property="og:type" content="article" />
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
+
       <div className="max-w-4xl mx-auto bg-slate-900 min-h-screen shadow-2xl relative border-x border-white/10">
         
         {/* Close Button */}

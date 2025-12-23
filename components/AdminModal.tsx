@@ -65,13 +65,33 @@ const AdminModal: React.FC<AdminModalProps> = ({
   const handleExportData = () => {
     const dataStr = JSON.stringify(posts, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `farsihub-backup-${new Date().toISOString().slice(0,10)}.json`;
-    
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+  };
+
+  const handleGenerateSitemap = () => {
+    const baseUrl = window.location.origin;
+    const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    const xmlFooter = '</urlset>';
+    
+    const urls = posts.map(post => `
+  <url>
+    <loc>${baseUrl}/?post=${post.id}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>`).join('');
+
+    const sitemapContent = `${xmlHeader}${urls}\n${xmlFooter}`;
+    const blob = new Blob([sitemapContent], { type: 'text/xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sitemap.xml';
+    link.click();
   };
 
   const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,7 +211,16 @@ const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     {/* Data Backup Section */}
-                    <h3 className="text-xs font-bold text-gray-500 uppercase mb-4 tracking-wider">پایگاه داده</h3>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase mb-4 tracking-wider">SEO & پایگاه داده</h3>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                       <button 
+                         onClick={handleGenerateSitemap}
+                         className="col-span-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 text-yellow-300 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                       >
+                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                         دانلود Sitemap.xml
+                       </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                        <button 
                          onClick={handleExportData}
