@@ -1,0 +1,5 @@
+{
+  "name": "FarsiHub AI",
+  "description": "A fully automated, client-side blogging platform using Gemini AI to generate high-value Farsi content, simulate traffic, and manage a virtual editorial team.",
+  "requestFramePermissions": []
+}
