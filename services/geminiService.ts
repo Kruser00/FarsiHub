@@ -7,7 +7,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // 1. Trend Discovery
 export async function getTrendingTopic(category: Category): Promise<{ topic: string; context: string }> {
-  const modelId = "gemini-3-flash-preview";
+  // Switched to 2.0 Flash Exp for higher rate limits (solves 429 error)
+  const modelId = "gemini-2.0-flash-exp";
   
   const prompt = `Find a currently trending, specific topic or news story in Iran regarding "${category}". 
   Return only the topic headline and a brief 1-sentence context.
@@ -42,7 +43,8 @@ export async function getTrendingTopic(category: Category): Promise<{ topic: str
 
 // 2. Content Drafting
 export async function generateBlogPostContent(topic: string, context: string, category: Category) {
-  const modelId = "gemini-3-flash-preview";
+  // Switched to 2.0 Flash Exp for higher rate limits (solves 429 error)
+  const modelId = "gemini-2.0-flash-exp";
 
   const prompt = `Write a high-quality, engaging blog post in Farsi (Persian) about: "${topic}".
   Context: ${context}.
@@ -106,6 +108,7 @@ export async function generateBlogPostContent(topic: string, context: string, ca
 
 // 3. Visuals Engine
 export async function generatePostImage(imagePrompt: string, fallbackTopic: string): Promise<string> {
+  // Keeping this as 2.5 flash image as it is the correct model for images
   const modelId = "gemini-2.5-flash-image";
   
   try {
