@@ -2,21 +2,46 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Category } from "../types";
 
 // Initialize the client.
-// Note: If the key is missing here, the API calls will fail with a clear message now.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Helper: Smart Retry Logic
+// If we get a 429 (Rate Limit) error, wait and try again.
+async function generateWithRetry(modelId: string, params: any, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await ai.models.generateContent({ 
+        model: modelId, 
+        ...params 
+      });
+    } catch (error: any) {
+      // 429 = Resource Exhausted (Rate Limit)
+      // 503 = Service Unavailable (Temporary)
+      const isRateLimit = error.status === 429 || error.message?.includes('429');
+      const isTemporary = error.status === 503;
+
+      if ((isRateLimit || isTemporary) && i < retries - 1) {
+        const waitTime = 5000 * (i + 1); // Wait 5s, then 10s, then 15s
+        console.warn(`⚠️ Rate limit hit. Retrying in ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
 
 // 1. Trend Discovery
 export async function getTrendingTopic(category: Category): Promise<{ topic: string; context: string }> {
-  // Switched to 2.0 Flash Exp for higher rate limits (solves 429 error)
-  const modelId = "gemini-2.0-flash-exp";
+  // Switched to Stable 2.0 Flash for better limits
+  const modelId = "gemini-2.0-flash";
   
   const prompt = `Find a currently trending, specific topic or news story in Iran regarding "${category}". 
   Return only the topic headline and a brief 1-sentence context.
   Do not hallucinate. Use Google Search to find real, recent trends.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: modelId,
+    const response = await generateWithRetry(modelId, {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -36,15 +61,14 @@ export async function getTrendingTopic(category: Category): Promise<{ topic: str
     return json;
   } catch (error: any) {
     console.error("Error fetching trend:", error);
-    // Fallback to prevent crash, but log the specific error
     return { topic: `${category} News`, context: "General update" };
   }
 }
 
 // 2. Content Drafting
 export async function generateBlogPostContent(topic: string, context: string, category: Category) {
-  // Switched to 2.0 Flash Exp for higher rate limits (solves 429 error)
-  const modelId = "gemini-2.0-flash-exp";
+  // Switched to Stable 2.0 Flash for better limits
+  const modelId = "gemini-2.0-flash";
 
   const prompt = `Write a high-quality, engaging blog post in Farsi (Persian) about: "${topic}".
   Context: ${context}.
@@ -61,8 +85,7 @@ export async function generateBlogPostContent(topic: string, context: string, ca
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: modelId,
+    const response = await generateWithRetry(modelId, {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -101,17 +124,17 @@ export async function generateBlogPostContent(topic: string, context: string, ca
 
   } catch (error: any) {
     console.error("Error generating content:", error);
-    // CRITICAL FIX: Throw the ACTUAL error message so we can see it in the UI logs
     throw new Error(error.message || "Unknown API Error");
   }
 }
 
 // 3. Visuals Engine
 export async function generatePostImage(imagePrompt: string, fallbackTopic: string): Promise<string> {
-  // Keeping this as 2.5 flash image as it is the correct model for images
   const modelId = "gemini-2.5-flash-image";
   
   try {
+    // Images usually use less quota, so standard call is often fine, 
+    // but wrapping in try/catch handles issues gracefully.
     const response = await ai.models.generateContent({
       model: modelId,
       contents: imagePrompt,

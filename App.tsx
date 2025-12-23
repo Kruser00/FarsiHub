@@ -215,7 +215,8 @@ function App() {
 
     // Schedule next run if still enabled
     if (isGeneratingRef.current) {
-      const cooldown = 15000; // 15 seconds
+      // INCREASED COOLDOWN: 30 Seconds to prevent 429 Rate Limits on Free Tier
+      const cooldown = 30000; 
       setNextGenTime(Date.now() + cooldown);
       setTimeout(() => {
         if (isGeneratingRef.current) {
